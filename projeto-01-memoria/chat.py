@@ -2,7 +2,6 @@ import anthropic
 import os
 import psycopg2
 import uuid
-from datetime import datetime
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -14,14 +13,15 @@ DB_CONFIG = {
     "password": "password123"
 }
 
-def conectar():
+def connect():
     return psycopg2.connect(**DB_CONFIG)
 
-def criar_tabelas():
-    conn = conectar()
+def create_tables():
+    """Create the conversations table if it doesn't exist."""
+    conn = connect()
     cur = conn.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS conversas (
+        CREATE TABLE IF NOT EXISTS conversations (
             id SERIAL PRIMARY KEY,
             session_id VARCHAR(36) NOT NULL,
             user_id VARCHAR(100) NOT NULL,
@@ -32,44 +32,46 @@ def criar_tabelas():
     """)
     cur.execute("""
         CREATE INDEX IF NOT EXISTS idx_session 
-        ON conversas(session_id, created_at)
+        ON conversations(session_id, created_at)
     """)
     conn.commit()
     cur.close()
     conn.close()
-    print("Tabelas criadas!")
 
-def guardar_mensagem(session_id: str, user_id: str, role: str, content: str):
-    conn = conectar()
+def save_message(session_id: str, user_id: str, role: str, content: str):
+    """Persist a single message to the database."""
+    conn = connect()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO conversas (session_id, user_id, role, content) VALUES (%s, %s, %s, %s)",
+        "INSERT INTO conversations (session_id, user_id, role, content) VALUES (%s, %s, %s, %s)",
         (session_id, user_id, role, content)
     )
     conn.commit()
     cur.close()
     conn.close()
 
-def carregar_historico(session_id: str, limite: int = 20) -> list:
-    conn = conectar()
+def load_history(session_id: str, limit: int = 20) -> list:
+    """Load the last N messages for a given session."""
+    conn = connect()
     cur = conn.cursor()
     cur.execute("""
-        SELECT role, content FROM conversas 
+        SELECT role, content FROM conversations 
         WHERE session_id = %s 
         ORDER BY created_at DESC 
         LIMIT %s
-    """, (session_id, limite))
+    """, (session_id, limit))
     rows = cur.fetchall()
     cur.close()
     conn.close()
     return [{"role": r[0], "content": r[1]} for r in reversed(rows)]
 
-def listar_sessoes(user_id: str) -> list:
-    conn = conectar()
+def list_sessions(user_id: str) -> list:
+    """List all sessions for a given user."""
+    conn = connect()
     cur = conn.cursor()
     cur.execute("""
         SELECT session_id, MIN(created_at), COUNT(*) 
-        FROM conversas 
+        FROM conversations 
         WHERE user_id = %s 
         GROUP BY session_id 
         ORDER BY MIN(created_at) DESC
@@ -80,66 +82,67 @@ def listar_sessoes(user_id: str) -> list:
     return rows
 
 def chat(user_id: str, session_id: str = None):
+    """Start or resume a chat session with persistent memory."""
     if not session_id:
         session_id = str(uuid.uuid4())
-        print(f"Nova sessao: {session_id[:8]}...")
+        print(f"New session: {session_id[:8]}...")
     else:
-        print(f"A retomar sessao: {session_id[:8]}...")
+        print(f"Resuming session: {session_id[:8]}...")
 
-    historico = carregar_historico(session_id)
-    print(f"Mensagens anteriores: {len(historico)}")
-    print("\nComandos: /sair, /nova, /sessoes, /limpar")
+    history = load_history(session_id)
+    print(f"Previous messages loaded: {len(history)}")
+    print("\nCommands: /quit, /new, /sessions, /clear")
     print("-" * 50)
 
     while True:
-        user_input = input("\nTu: ").strip()
+        user_input = input("\nYou: ").strip()
 
-        if user_input == "/sair":
-            print(f"Sessao guardada: {session_id[:8]}")
+        if user_input == "/quit":
+            print(f"Session saved: {session_id[:8]}")
             break
 
-        if user_input == "/nova":
-            print("A iniciar nova sessao...")
+        if user_input == "/new":
+            print("Starting new session...")
             return chat(user_id)
 
-        if user_input == "/sessoes":
-            sessoes = listar_sessoes(user_id)
-            print(f"\nSessoes de {user_id}:")
-            for s in sessoes:
-                print(f"  {s[0][:8]}... | {s[1].strftime('%d/%m %H:%M')} | {s[2]} msgs")
+        if user_input == "/sessions":
+            sessions = list_sessions(user_id)
+            print(f"\nSessions for {user_id}:")
+            for s in sessions:
+                print(f"  {s[0][:8]}... | {s[1].strftime('%d/%m %H:%M')} | {s[2]} messages")
             continue
 
-        if user_input == "/limpar":
-            conn = conectar()
+        if user_input == "/clear":
+            conn = connect()
             cur = conn.cursor()
-            cur.execute("DELETE FROM conversas WHERE session_id = %s", (session_id,))
+            cur.execute("DELETE FROM conversations WHERE session_id = %s", (session_id,))
             conn.commit()
             cur.close()
             conn.close()
-            historico = []
-            print("Historico limpo!")
+            history = []
+            print("History cleared!")
             continue
 
         if not user_input:
             continue
 
-        guardar_mensagem(session_id, user_id, "user", user_input)
-        historico.append({"role": "user", "content": user_input})
+        save_message(session_id, user_id, "user", user_input)
+        history.append({"role": "user", "content": user_input})
 
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=1024,
-            system=f"O utilizador chama-se {user_id}. Lembra-te sempre do nome e contexto anterior.",
-            messages=historico
+            system=f"The user's name is {user_id}. Always remember their name and previous context.",
+            messages=history
         )
 
-        resposta = response.content[0].text
-        guardar_mensagem(session_id, user_id, "assistant", resposta)
-        historico.append({"role": "assistant", "content": resposta})
+        reply = response.content[0].text
+        save_message(session_id, user_id, "assistant", reply)
+        history.append({"role": "assistant", "content": reply})
 
-        print(f"\nClaude: {resposta}")
+        print(f"\nClaude: {reply}")
 
 if __name__ == "__main__":
-    criar_tabelas()
-    user_id = input("O teu nome: ").strip() or "gustavo"
+    create_tables()
+    user_id = input("Your name: ").strip() or "user"
     chat(user_id)
