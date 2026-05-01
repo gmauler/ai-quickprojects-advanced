@@ -18,13 +18,13 @@ of a real AI-powered SaaS product.
 | 02 | [Intelligent API Cache](./projeto-02-cache) | Redis cache that avoids redundant API calls | Redis, FastAPI | ✅ |
 | 03 | [Analytics Dashboard](./projeto-03-dashboard) | Real-time React dashboard for API metrics | React, Recharts, PostgreSQL | ✅ |
 | 04 | [Async Task Queue](./projeto04celery) | Background processing with Celery and Flower | Celery, Redis, FastAPI | ✅ |
-| 05 | Vector Store with pgvector | Semantic search over documents using embeddings | pgvector, PostgreSQL | ⏳ |
-| 06 | Episodic Memory Agent | Agent that learns and updates user knowledge | PostgreSQL, embeddings | ⏳ |
-| 07 | Multi-Agent Orchestrator | Delegates tasks to specialised sub-agents | FastAPI, asyncio | ⏳ |
-| 08 | Code Execution Agent | Writes and runs Python in an isolated sandbox | Docker, FastAPI | ⏳ |
-| 09 | Document Pipeline | Async PDF processing with semantic indexing | PyMuPDF, pgvector, Celery | ⏳ |
-| 10 | Monitoring Agent | Watches URLs for changes and sends smart alerts | APScheduler, SMTP | ⏳ |
-| 11 | Streaming Chat UI | React chat with real-time token streaming | React, FastAPI SSE | ⏳ |
+| 05 | Vector Store with pgvector | Semantic search over documents using embeddings | pgvector, PostgreSQL | ✅ |
+| 06 | Episodic Memory Agent | Agent that learns and updates user knowledge | PostgreSQL, embeddings | ✅ |
+| 07 | Multi-Agent Orchestrator | Delegates tasks to specialised sub-agents | FastAPI, asyncio | ✅ |
+| 08 | Code Execution Agent | Writes and runs Python in an isolated sandbox | Docker, FastAPI | ✅ |
+| 09 | Document Pipeline | Async PDF processing with semantic indexing | PyMuPDF, pgvector, Celery | ✅ |
+| 10 | Monitoring Agent | Watches URLs for changes and sends smart alerts | APScheduler, SMTP | ✅ |
+| 11 | Streaming Chat UI | React chat with real-time token streaming | React, FastAPI SSE | ✅ |
 | 12 | Document Search Dashboard | Drag-and-drop PDF upload with semantic search | React, pgvector | ⏳ |
 | 13 | Prompt A/B Testing Tool | Side-by-side prompt comparison with metrics | React, Monaco Editor | ⏳ |
 | 14 | Voice Assistant | Record audio, transcribe with Whisper, reply with Claude | Whisper, Web Audio API | ⏳ |
